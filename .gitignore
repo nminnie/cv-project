@@ -1,3 +1,8 @@
+# Datasets and files
+dataset*
+Dataset*
+*.zip
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
