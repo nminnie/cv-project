@@ -43,7 +43,7 @@ def val_transform(image, mask):
     return image, mask
 
 # Create datasets
-data_root = '../Dataset/'  # Adjust path as needed
+data_root = './Dataset/'
 trainval_dataset = PetDataset(data_root, 'TrainVal', transform=joint_transform_train)
 train_size = int(0.8 * len(trainval_dataset))
 val_size = len(trainval_dataset) - train_size
@@ -625,5 +625,5 @@ if __name__ == "__main__":
     # Assuming train_loader, val_loader, and test_loader are already defined
     run_experiment(train_loader, val_loader, test_loader, 
                   device, 
-                  autoencoder_epochs=5, 
-                  segmentation_epochs=5)
+                  autoencoder_epochs=20, 
+                  segmentation_epochs=20)
