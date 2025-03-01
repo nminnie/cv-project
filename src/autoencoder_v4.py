@@ -200,7 +200,7 @@ class SegmentationModel(nn.Module):
 def train_autoencoder(model, train_loader, val_loader, num_epochs=10):
     model.train()
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.0001)
     device = next(model.parameters()).device
     
     train_losses = []
@@ -271,7 +271,7 @@ def train_autoencoder(model, train_loader, val_loader, num_epochs=10):
 def train_segmentation(model, train_loader, val_loader, num_epochs=10):
     model.train()
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore white border pixels
-    optimizer = optim.Adam(model.decoder.parameters(), lr=0.001)  # Only train decoder
+    optimizer = optim.Adam(model.decoder.parameters(), lr=0.0001)  # Only train decoder
     device = next(model.parameters()).device
     
     train_losses = []
@@ -559,7 +559,7 @@ def run_experiment(train_loader, val_loader, test_loader, device,
     plt.savefig('artifacts/validation_iou.png')
     
     # Save all results to a summary file
-    with open('experiment_summary.txt', 'w') as f:
+    with open('artifacts/experiment_summary.txt', 'w') as f:
         f.write("Experiment Summary\n")
         f.write("=================\n\n")
         f.write(f"Autoencoder:\n")
