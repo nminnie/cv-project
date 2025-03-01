@@ -180,10 +180,10 @@ class SegmentationDecoder(nn.Module):
 
 # Combine Encoder and Segmentation Decoder
 class SegmentationModel(nn.Module):
-    def __init__(self, pretrained_encoder, num_classes=3):
+    def __init__(self, pretrained_encoder, latent_dim, num_classes=3):
         super(SegmentationModel, self).__init__()
         self.encoder = pretrained_encoder
-        self.decoder = SegmentationDecoder(num_classes)
+        self.decoder = SegmentationDecoder(latent_dim, num_classes)
         
         # Freeze the encoder weights (since it's pretrained)
         for param in self.encoder.parameters():
@@ -191,7 +191,7 @@ class SegmentationModel(nn.Module):
             
     def forward(self, x):
         # Get features from the encoder (ignore latent)
-        features, _ = self.encoder(x)
+        features = self.encoder(x)
         # Use these features for segmentation
         segmentation = self.decoder(features)
         return segmentation
@@ -483,7 +483,7 @@ def run_experiment(train_loader, val_loader, test_loader, device,
     # 2. Create segmentation model with pretrained encoder
     print("Creating segmentation model with pretrained encoder...")
     segmentation_model = SegmentationModel(
-        autoencoder.encoder, num_classes=3  # 3 classes: background, cat, dog
+        autoencoder.encoder, latent_dim=256, num_classes=3  # 3 classes: background, cat, dog
     ).to(device)
     
     # 3. Train segmentation model
@@ -591,5 +591,5 @@ if __name__ == "__main__":
     # Assuming train_loader, val_loader, and test_loader are already defined
     run_experiment(train_loader, val_loader, test_loader, 
                   device, 
-                  autoencoder_epochs=10, 
-                  segmentation_epochs=10)
+                  autoencoder_epochs=20, 
+                  segmentation_epochs=20)
