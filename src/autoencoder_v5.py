@@ -487,6 +487,15 @@ def run_experiment(train_loader, val_loader, test_loader, device, run_path,
     
     plt.tight_layout()
     plt.savefig(f'{run_path}/training_curves.png')
+
+    # Save all results to a summary file
+    with open(f'{run_path}/summary.txt', 'w') as f:
+        f.write(f"Autoencoder:\n")
+        f.write(f"  - Best validation loss: {best_ae_val_loss:.4f}\n")
+        f.write(f"\nSegmentation:\n")
+        f.write(f"  - Best validation loss: {best_seg_val_loss:.4f}\n")
+        f.write(f"  - Validation set metrics: {val_metrics}\n")
+        f.write(f"  - Test set metrics: {test_metrics}\n")
     
     return {
         'autoencoder_train_losses': autoencoder_train_losses,
