@@ -256,8 +256,7 @@ def train_model(
     num_epochs=50, 
     learning_rate=1e-4, 
     device='cuda',
-    save_path='./checkpoints',
-    log_dir='./logs'
+    save_path='./checkpoints'
 ):
     """
     Train the point-prompted segmentation model
@@ -400,7 +399,22 @@ def train_model(
     return model
 
 
+def set_seed(seed=100):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    torch.backends.cudnn.deterministic = True
+
+
 if __name__ == "__main__":
+    set_seed(100)
+
+    # Device configuration
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
+
     # Define image sizes
     img_size = 128
     crop_size = 112
@@ -419,7 +433,7 @@ if __name__ == "__main__":
         return image, mask
 
     # Create datasets
-    data_root = '../Dataset/'  # Adjust path as needed
+    data_root = './Dataset/'  # Adjust path as needed
     trainval_dataset = PetDataset(data_root, 'TrainVal', transform=joint_transform_train)
     train_size = int(0.8 * len(trainval_dataset))
     val_size = len(trainval_dataset) - train_size
@@ -458,9 +472,8 @@ if __name__ == "__main__":
         batch_size=8,
         num_epochs=20,
         learning_rate=1e-4,
-        device='cuda' if torch.cuda.is_available() else 'cpu',
-        save_path='./checkpoints',
-        log_dir='./logs'
+        device=device,
+        save_path='./checkpoints'
     )
 
     # Save final model
