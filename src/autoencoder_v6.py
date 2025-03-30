@@ -212,12 +212,12 @@ def train_autoencoder(model, train_loader, val_loader, run_path, num_epochs=10):
 def train_segmentation(model, train_loader, val_loader, run_path, num_epochs=10):
     model.train()
     
+    device = next(model.parameters()).device
     cat_weight = 2.1
     class_weights = torch.tensor([1.0, cat_weight, 1.0], device=device)
     
     criterion = nn.CrossEntropyLoss(weight=class_weights, ignore_index=255)  # Ignore white border pixels
     optimizer = optim.Adam(model.decoder.parameters(), lr=0.001)  # Only train decoder
-    device = next(model.parameters()).device
     
     train_losses = []
     val_losses = []

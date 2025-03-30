@@ -9,6 +9,14 @@ import numpy as np
 import random
 from scipy.ndimage import gaussian_filter, map_coordinates
 
+seed = 100
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
 
 class JointTransform:
     def __init__(self, img_size=224, crop_size=196, p_flip=0.5, p_rotate=0.3, p_elastic=0.3):
