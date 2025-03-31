@@ -2,16 +2,14 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import transforms
 import torchvision.transforms.functional as TF
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 import random
-from scipy.ndimage import gaussian_filter, map_coordinates
-import time
+
 
 # Set random seed for reproducibility
 seed = 100
