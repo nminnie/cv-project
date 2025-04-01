@@ -845,7 +845,7 @@ if __name__ == "__main__":
     # Train Point-based U-Net model
     print("Training Point-based U-Net...")
     num_epochs = 20
-    cat_weight = 2.1
+    cat_weight = 1.0
     point_based_unet, history = train_point_prompted_unet(point_based_unet, train_loader, val_loader, num_epochs=num_epochs, cat_weight=cat_weight, device=device)
     print("Training complete!")
     
