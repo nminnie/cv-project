@@ -743,12 +743,13 @@ def evaluate_model(model, dataloader, device):
     dice_sum = torch.zeros(num_classes, device=device)
     
     with torch.no_grad():
-        for images, masks in tqdm(dataloader, desc="Evaluating"):
+        for images, point_heatmaps, masks, _, _ in tqdm(dataloader, desc="Evaluating"):
             images = images.to(device)
+            point_heatmaps = point_heatmaps.to(device)
             masks = masks.to(device)
             
             # Get predictions
-            outputs = model(images)
+            outputs = model(images, point_heatmaps)
             _, predicted = torch.max(outputs, 1)
             
             # Calculate accuracy (ignoring white pixels with value 255)
