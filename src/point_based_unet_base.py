@@ -373,7 +373,7 @@ class PointPromptedUNet(nn.Module):
 
 
 ### TRAIN NETWORK ###
-def train_point_prompted_unet(model, train_loader, val_loader, num_epochs=50, cat_weight=2.1, device=device):
+def train_point_prompted_unet(model, train_loader, val_loader, run_path, num_epochs=50, cat_weight=2.1, device=device):
     """
     Train the Point-Prompted U-Net model.
     
@@ -657,7 +657,7 @@ def train_point_prompted_unet(model, train_loader, val_loader, num_epochs=50, ca
                 'val_iou': val_mean_iou,
                 'train_dice': mean_dice,
                 'val_dice': val_mean_dice
-            }, 'point_prompted_unet_pet_segmentation_best.pt')
+            }, f'{run_path}/point_prompted_unet_pet_segmentation_best.pt')
         
         # Save checkpoint every 5 epochs
         if (epoch + 1) % 5 == 0:
@@ -672,9 +672,10 @@ def train_point_prompted_unet(model, train_loader, val_loader, num_epochs=50, ca
                 'val_iou': val_mean_iou,
                 'train_dice': mean_dice,
                 'val_dice': val_mean_dice
-            }, f'point_prompted_unet_pet_segmentation_epoch_{epoch+1}.pt')
+            }, f'{run_path}/point_prompted_unet_pet_segmentation_epoch_{epoch+1}.pt')
+    
     # Save final model
-    torch.save(model.state_dict(), 'point_prompted_unet_pet_segmentation_final.pth')
+    torch.save(model.state_dict(), f'{run_path}/point_prompted_unet_pet_segmentation_final.pth')
     
     # Load best model
     model.load_state_dict(best_model)
@@ -703,7 +704,7 @@ def train_point_prompted_unet(model, train_loader, val_loader, num_epochs=50, ca
     plt.grid(alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig('training_curves.png')
+    plt.savefig(f'{run_path}/training_curves.png')
     plt.show()
     
     return model, {
@@ -808,6 +809,10 @@ if __name__ == "__main__":
     ### CREATE DATALOADERS ###
     # Set paths and create datasets
     data_root = '../Dataset_augmented/'
+    run_name = 'base_20epochs'
+    run_path = f'runs/point_based_unet/{run_name}'
+    if not os.path.exists(run_path):
+        os.makedirs(run_path)
 
     # Create datasets - directly use train/val/test splits from the augmented dataset
     train_dataset = PointPromptedPetDataset(data_root, 'train')
@@ -846,7 +851,13 @@ if __name__ == "__main__":
     print("Training Point-based U-Net...")
     num_epochs = 20
     cat_weight = 1.0
-    point_based_unet, history = train_point_prompted_unet(point_based_unet, train_loader, val_loader, num_epochs=num_epochs, cat_weight=cat_weight, device=device)
+    point_based_unet, history = train_point_prompted_unet(
+        point_based_unet,
+        train_loader, val_loader,
+        run_path=run_path,
+        num_epochs=num_epochs,
+        cat_weight=cat_weight,
+        device=device)
     print("Training complete!")
     
 
