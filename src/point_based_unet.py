@@ -808,7 +808,7 @@ if __name__ == "__main__":
     ### CREATE DATALOADERS ###
     # Set paths and create datasets
     data_root = '../Dataset_augmented/'
-    run_name = 'loss_weighted_20epochs'
+    run_name = 'loss_weighted_50epochs'
     run_path = f'runs/point_based_unet/{run_name}'
     if not os.path.exists(run_path):
         os.makedirs(run_path)
@@ -848,7 +848,7 @@ if __name__ == "__main__":
 
     # Train Point-based U-Net model
     print("Training Point-based U-Net...")
-    num_epochs = 20
+    num_epochs = 50
     cat_weight = 2.1
     point_based_unet, history = train_point_prompted_unet(
         point_based_unet,
