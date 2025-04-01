@@ -864,28 +864,41 @@ if __name__ == "__main__":
     # Evaluate model on validation set
     print("\nEvaluating Point-Based U-Net on validation set:")
     val_results = evaluate_model(point_based_unet, val_loader, device)
+    print(val_results)
 
     # Evaluate model on test set
     print("\nEvaluating Point-Based U-Net on test set:")
     test_results = evaluate_model(point_based_unet, test_loader, device)
+    print(test_results)
 
-    # Display final results
-    print("\nFinal Results:")
-    print("Validation Set:")
-    print(f"  Pixel Accuracy: {val_results['pixel_accuracy']:.4f}")
-    print(f"  Mean IoU: {val_results['mean_iou']:.4f}")
-    print(f"  Mean Dice: {val_results['mean_dice']:.4f}")
-    print("Test Set:")
-    print(f"  Pixel Accuracy: {test_results['pixel_accuracy']:.4f}")
-    print(f"  Mean IoU: {test_results['mean_iou']:.4f}")
-    print(f"  Mean Dice: {test_results['mean_dice']:.4f}")
+    with open(f'{run_path}/summary.txt', 'w') as f:
+        # Save final results
+        f.write("Final Results:\n")
+        f.write("Validation Set:\n")
+        f.write(f"  Pixel Accuracy: {val_results['pixel_accuracy']:.4f}\n")
+        f.write(f"  Mean IoU: {val_results['mean_iou']:.4f}\n")
+        f.write(f"  Mean Dice: {val_results['mean_dice']:.4f}\n")
+        f.write("Test Set:\n")
+        f.write(f"  Pixel Accuracy: {test_results['pixel_accuracy']:.4f}\n")
+        f.write(f"  Mean IoU: {test_results['mean_iou']:.4f}\n")
+        f.write(f"  Mean Dice: {test_results['mean_dice']:.4f}\n")
 
-    # Class-wise results
-    print("\nClass-wise Results:")
-    class_names = ["background", "cat", "dog"]
-    print("IoU:")
-    for cls in class_names:
-        print(f"  {cls}: {test_results['class_ious'][cls]:.4f}")
-    print("Dice:")
-    for cls in class_names:
-        print(f"  {cls}: {test_results['class_dice'][cls]:.4f}")
+        # Class-wise validation results
+        f.write("\nClass-wise Validation Results:\n")
+        class_names = ["background", "cat", "dog"]
+        f.write("IoU:\n")
+        for cls in class_names:
+            f.write(f"  {cls}: {val_results['class_ious'][cls]:.4f}\n")
+        f.write("Dice:\n")
+        for cls in class_names:
+            f.write(f"  {cls}: {val_results['class_dice'][cls]:.4f}\n")
+
+        # Class-wise test results
+        f.write("\nClass-wise Test Results:\n")
+        class_names = ["background", "cat", "dog"]
+        f.write("IoU:\n")
+        for cls in class_names:
+            f.write(f"  {cls}: {test_results['class_ious'][cls]:.4f}\n")
+        f.write("Dice:\n")
+        for cls in class_names:
+            f.write(f"  {cls}: {test_results['class_dice'][cls]:.4f}\n")
