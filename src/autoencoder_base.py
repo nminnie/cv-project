@@ -589,6 +589,8 @@ def train_pipeline(train_loader, val_loader, test_loader, device, run_path,
     autoencoder_train_losses, autoencoder_val_losses, best_autoencoder_val_loss = train_autoencoder(
         autoencoder, train_loader, val_loader, run_path, num_epochs=autoencoder_epochs
     )
+    # Load best autoencoder checkpoint
+    autoencoder.load_state_dict(torch.load(f'{run_path}/autoencoder.pth', map_location=device))
     
     # Train segmentation model
     print("Training segmentation model...")
