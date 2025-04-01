@@ -680,10 +680,8 @@ def train_point_prompted_unet(model, train_loader, val_loader, run_path, num_epo
     # Load best model
     model.load_state_dict(best_model)
     
-    # Create final plots
-    plt.figure(figsize=(15, 5))
-    
-    plt.subplot(1, 2, 1)
+    # Create and save figure for losses
+    plt.figure(figsize=(7, 5))
     plt.plot(train_losses, 'b-', label='Training Loss')
     plt.plot(val_losses, 'r-', label='Validation Loss')
     plt.xlabel('Epochs')
@@ -691,8 +689,11 @@ def train_point_prompted_unet(model, train_loader, val_loader, run_path, num_epo
     plt.title('Training and Validation Loss')
     plt.legend()
     plt.grid(alpha=0.3)
-    
-    plt.subplot(1, 2, 2)
+    plt.tight_layout()
+    plt.savefig(f'{run_path}/loss_curves.png')
+
+    # Create and save figure for IoU and Dice
+    plt.figure(figsize=(7, 5))
     plt.plot(train_iou, 'b--', label='Train IoU')
     plt.plot(val_iou, 'r--', label='Val IoU')
     plt.plot(train_dice, 'b-', label='Train Dice')
@@ -702,10 +703,8 @@ def train_point_prompted_unet(model, train_loader, val_loader, run_path, num_epo
     plt.title('IoU and Dice Scores')
     plt.legend()
     plt.grid(alpha=0.3)
-    
     plt.tight_layout()
-    plt.savefig(f'{run_path}/training_curves.png')
-    plt.show()
+    plt.savefig(f'{run_path}/metrics_curves.png')
     
     return model, {
         'train_loss': train_losses,
@@ -809,7 +808,7 @@ if __name__ == "__main__":
     ### CREATE DATALOADERS ###
     # Set paths and create datasets
     data_root = '../Dataset_augmented/'
-    run_name = 'weighted_20epochs'
+    run_name = 'loss_weighted_20epochs'
     run_path = f'runs/point_based_unet/{run_name}'
     if not os.path.exists(run_path):
         os.makedirs(run_path)
