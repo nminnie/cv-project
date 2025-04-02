@@ -457,9 +457,13 @@ def train_text_prompted_model(model, train_loader, val_loader, text_features, ru
                 # Move data to device
                 images = images.to(device)
                 masks = masks.to(device)
+
+                # Expand text features for batch
+                batch_size = images.shape[0]
+                batch_text_features = text_features.unsqueeze(0).expand(batch_size, -1, -1)
                 
                 # Forward pass
-                outputs = model(images)
+                outputs = model(images, batch_text_features)
                 
                 # Calculate loss
                 loss = criterion(outputs, masks)
@@ -678,8 +682,6 @@ if __name__ == "__main__":
     run_path = f'runs/text_prompted_unet/{run_name}'
     if not os.path.exists(run_path):
         os.makedirs(run_path)
-    else:
-        raise Exception("Directory already exists")
 
     # Create datasets - directly use train/val/test splits from the augmented dataset
     train_dataset = PetDataset(data_root, 'train')
