@@ -808,15 +808,15 @@ if __name__ == "__main__":
     ### CREATE DATALOADERS ###
     # Set paths and create datasets
     data_root = '../Dataset_augmented/'
-    run_name = 'parallel_20epochs'
+    run_name = 'parallel_random_20epochs'
     run_path = f'runs/point_based_unet/{run_name}'
     if not os.path.exists(run_path):
         os.makedirs(run_path)
 
     # Create datasets - directly use train/val/test splits from the augmented dataset
-    train_dataset = PointPromptedPetDataset(data_root, 'train')
-    val_dataset = PointPromptedPetDataset(data_root, 'val')
-    test_dataset = PointPromptedPetDataset(data_root, 'test')
+    train_dataset = PointPromptedPetDataset(data_root, 'train', point_sample_mode='random')
+    val_dataset = PointPromptedPetDataset(data_root, 'val', point_sample_mode='random')
+    test_dataset = PointPromptedPetDataset(data_root, 'test', point_sample_mode='random')
 
     # Print dataset sizes
     print(f"Training set size: {len(train_dataset)}")
