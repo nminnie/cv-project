@@ -265,7 +265,7 @@ def get_class_specific_text_features(clip_model, prompts_per_class, device):
     return torch.cat(all_text_features, dim=0)  # (num_classes, embed_dim)
 
 
-def train_text_prompted_model(model, train_loader, val_loader, text_features, num_epochs=20, cat_weight=2.1, device=device):
+def train_text_prompted_model(model, train_loader, val_loader, text_features, run_path, num_epochs=20, cat_weight=2.1, device=device):
     """
     Train the text-prompted U-Net model.
     
@@ -539,11 +539,11 @@ def train_text_prompted_model(model, train_loader, val_loader, text_features, nu
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             best_model = model.state_dict().copy()
-            torch.save(model.state_dict(), "text_prompted_unet_best.pth")
+            torch.save(model.state_dict(), f"{run_path}/text_prompted_unet_best.pth")
             print(f"  New best model saved with validation loss: {val_loss:.4f}")
     
     # Save final model
-    torch.save(model.state_dict(), 'text_prompted_unet_final.pth')
+    torch.save(model.state_dict(), f'{run_path}/text_prompted_unet_final.pth')
     
     # Load best model
     model.load_state_dict(best_model)
@@ -558,7 +558,7 @@ def train_text_prompted_model(model, train_loader, val_loader, text_features, nu
     plt.title('Training and Validation Loss')
     plt.legend()
     plt.grid(alpha=0.3)
-    plt.savefig('loss_curve.png')
+    plt.savefig(f'{run_path}/loss_curve.png')
 
     # IoU and Dice Scores
     plt.figure(figsize=(7, 5))
@@ -571,7 +571,7 @@ def train_text_prompted_model(model, train_loader, val_loader, text_features, nu
     plt.title('IoU and Dice Scores')
     plt.legend()
     plt.grid(alpha=0.3)
-    plt.savefig('iou_dice_curve.png')
+    plt.savefig(f'{run_path}/metrics_curve.png')
     
     return model, {
         'train_loss': train_losses,
@@ -676,6 +676,12 @@ def evaluate_model(model, dataloader, text_features, device):
 if __name__ == "__main__":
     # Set paths and create datasets
     data_root = '../Dataset_augmented/'
+    run_name = sys.argv[1]
+    run_path = f'runs/text_prompted_unet/{run_name}'
+    if not os.path.exists(run_path):
+        os.makedirs(run_path)
+    else:
+        raise Exception("Directory already exists")
 
     # Create datasets - directly use train/val/test splits from the augmented dataset
     train_dataset = PetDataset(data_root, 'train')
@@ -749,6 +755,7 @@ if __name__ == "__main__":
         train_loader,
         val_loader,
         text_features,
+        run_path,
         num_epochs=20,
         cat_weight=1.0,
         device=device
