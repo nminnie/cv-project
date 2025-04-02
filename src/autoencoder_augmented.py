@@ -321,24 +321,24 @@ class SegmentationDecoder(nn.Module):
     def __init__(self, latent_dim=256, num_classes=3):
         super(SegmentationDecoder, self).__init__()
         self.decoder = nn.Sequential(
-            # Input: (latent_dim, 4, 4)
-            nn.ConvTranspose2d(latent_dim, 256, kernel_size=4, stride=2, padding=1),  # (256, 8, 8)
+            # Input: (latent_dim, 7, 7)
+            nn.ConvTranspose2d(latent_dim, 256, kernel_size=4, stride=2, padding=1),  # (256, 14, 14)
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             
-            nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),  # (128, 16, 16)
+            nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),  # (128, 28, 28)
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
             
-            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),  # (64, 32, 32)
+            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),  # (64, 56, 56)
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
             
-            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),  # (32, 64, 64)
+            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),  # (32, 112, 112)
             nn.BatchNorm2d(32),
             nn.ReLU(inplace=True),
             
-            nn.ConvTranspose2d(32, num_classes, kernel_size=4, stride=2, padding=1),  # (num_classes, 128, 128)
+            nn.ConvTranspose2d(32, num_classes, kernel_size=4, stride=2, padding=1),  # (num_classes, 224, 224)
         )
         
     def forward(self, x):

@@ -12,21 +12,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm.notebook import tqdm
 import random
-from scipy.ndimage import gaussian_filter, map_coordinates
 import time
 import clip
 
-# Get the absolute path to the project root directory (parent of both notebooks and src)
-project_root = os.path.abspath(os.path.join(os.path.dirname('__file__'), '..'))
-sys.path.append(project_root)
-
-# Then import the module directly
-from src.data_preprocessing import PetDataset
+from data_preprocessing import PetDataset
 
 # Set random seed for reproducibility
-torch.manual_seed(100)
+seed = 100
+random.seed(seed)
+np.random.seed(seed)
+torch.manual_seed(seed)
 if torch.cuda.is_available():
-    torch.cuda.manual_seed(100)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

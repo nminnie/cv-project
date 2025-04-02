@@ -11,16 +11,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import random
-from scipy.ndimage import gaussian_filter, map_coordinates
 import time
 
-### SETUP & IMPORT ###
-# Get the absolute path to the project root directory (parent of both notebooks and src)
-project_root = os.path.abspath(os.path.join(os.path.dirname('__file__'), '..'))
-sys.path.append(project_root)
-
-# Then import the module directly
-from src.data_preprocessing import PetDataset
+from data_preprocessing import PetDataset
 
 # Set random seed for reproducibility
 seed = 100
@@ -808,7 +801,7 @@ if __name__ == "__main__":
     ### CREATE DATALOADERS ###
     # Set paths and create datasets
     data_root = '../Dataset_augmented/'
-    run_name = 'loss_weighted_50epochs'
+    run_name = 'loss_weighted_20epochs'
     run_path = f'runs/point_based_unet/{run_name}'
     if not os.path.exists(run_path):
         os.makedirs(run_path)
@@ -848,7 +841,7 @@ if __name__ == "__main__":
 
     # Train Point-based U-Net model
     print("Training Point-based U-Net...")
-    num_epochs = 50
+    num_epochs = 20
     cat_weight = 2.1
     point_based_unet, history = train_point_prompted_unet(
         point_based_unet,
