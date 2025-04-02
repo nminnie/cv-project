@@ -10,7 +10,7 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 import random
 import time
 import clip
