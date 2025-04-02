@@ -320,6 +320,7 @@ def train_text_prompted_model(model, train_loader, val_loader, text_features, ru
         with torch.no_grad():
             batch_size = test_imgs.shape[0]
             batch_text_features = text_features.unsqueeze(0).expand(batch_size, -1, -1)
+            batch_text_features = batch_text_features.to(next(model.parameters()).dtype)
             test_output = model(test_imgs, batch_text_features)
         print(f"Forward pass test: {time.time() - start_time:.2f}s")
     except Exception as e:
@@ -377,6 +378,7 @@ def train_text_prompted_model(model, train_loader, val_loader, text_features, ru
             # Expand text features for batch
             batch_size = images.shape[0]
             batch_text_features = text_features.unsqueeze(0).expand(batch_size, -1, -1)  # B, num_classes, embed_dim
+            batch_text_features = batch_text_features.to(next(model.parameters()).dtype)
             
             # Forward pass with mixed precision
             with autocast():
@@ -461,7 +463,8 @@ def train_text_prompted_model(model, train_loader, val_loader, text_features, ru
                 # Expand text features for batch
                 batch_size = images.shape[0]
                 batch_text_features = text_features.unsqueeze(0).expand(batch_size, -1, -1)
-                
+                batch_text_features = batch_text_features.to(next(model.parameters()).dtype)
+
                 # Forward pass
                 outputs = model(images, batch_text_features)
                 
@@ -618,6 +621,7 @@ def evaluate_model(model, dataloader, text_features, device):
             # Expand text features for batch
             batch_size = images.shape[0]
             batch_text_features = text_features.unsqueeze(0).expand(batch_size, -1, -1)
+            batch_text_features = batch_text_features.to(next(model.parameters()).dtype)
             
             # Get predictions
             outputs = model(images, batch_text_features)
