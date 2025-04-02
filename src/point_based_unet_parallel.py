@@ -808,15 +808,15 @@ if __name__ == "__main__":
     ### CREATE DATALOADERS ###
     # Set paths and create datasets
     data_root = '../Dataset_augmented/'
-    run_name = 'parallel_random_20epochs'
+    run_name = 'parallel_50epochs'
     run_path = f'runs/point_based_unet/{run_name}'
     if not os.path.exists(run_path):
         os.makedirs(run_path)
 
     # Create datasets - directly use train/val/test splits from the augmented dataset
-    train_dataset = PointPromptedPetDataset(data_root, 'train', point_sample_mode='random')
-    val_dataset = PointPromptedPetDataset(data_root, 'val', point_sample_mode='random')
-    test_dataset = PointPromptedPetDataset(data_root, 'test', point_sample_mode='random')
+    train_dataset = PointPromptedPetDataset(data_root, 'train')
+    val_dataset = PointPromptedPetDataset(data_root, 'val')
+    test_dataset = PointPromptedPetDataset(data_root, 'test')
 
     # Print dataset sizes
     print(f"Training set size: {len(train_dataset)}")
@@ -848,7 +848,7 @@ if __name__ == "__main__":
 
     # Train Point-based U-Net model
     print("Training Point-based U-Net...")
-    num_epochs = 20
+    num_epochs = 50
     cat_weight = 1.0
     point_based_unet, history = train_point_prompted_unet(
         point_based_unet,
