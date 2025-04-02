@@ -655,7 +655,7 @@ def train_pipeline(train_loader, val_loader, test_loader, device, run_path,
 
 train_pipeline(
     train_loader, val_loader, test_loader,
-    device, "runs/autoencoder/augmented_weighted_20epochs",
+    device, "runs/autoencoder/augmented_weighted_latent512_20epochs",
     autoencoder_epochs=20,
     segmentation_epochs=20,
     latent_dim=512
