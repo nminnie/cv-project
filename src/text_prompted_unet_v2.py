@@ -263,9 +263,9 @@ def train_text_prompted_model(model, train_loader, val_loader, clip_model, run_p
     
     # Define prompt options for each class
     class_prompts = {
-        0: ["the background", "background region with no pets", "the area surrounding", "scenery, furniture, floors, or walls"],
-        1: ["the cat", "a domestic cat with fur and whiskers", "a feline pet with pointed ears and a tail", "the complete shape and outline of a cat"],
-        2: ["the dog", "a domestic dog with fur and a snout", "a canine pet with distinctive ears", "the complete shape and outline of a dog"]
+        0: ["the background", "background region with no pets", "the area surrounding", "scenery, furniture, floors, or walls", "The backdrop of the image."],
+        1: ["a cat", "a domestic cat with fur and whiskers", "a feline pet with pointed ears and a tail", "the complete shape and outline of a cat", "A cat staring at the camera.", "the quiet cat"],
+        2: ["a dog", "a domestic dog with fur and a snout", "a canine pet with distinctive ears", "the complete shape and outline of a dog", "A dog sitting.", "the furry dog"]
     }
     
     # Test data loading
@@ -637,9 +637,9 @@ def evaluate_model(model, dataloader, clip_model, device):
     
     # Define prompt options for each class
     class_prompts = {
-        0: ["background region with no pets", "the area surrounding", "scenery, furniture, floors, or walls"],
-        1: ["a domestic cat with fur and whiskers", "a feline pet with pointed ears and a tail", "the complete shape and outline of a cat"],
-        2: ["a domestic dog with fur and a snout", "a canine pet with distinctive ears", "the complete shape and outline of a dog"]
+        0: [ "The background", "Non-subject areas of the image", "The space around the main subject", "Areas without any animals", "Surrounding environment in the picture"],
+        1: ["four-legged feline with a distinct silhouette", "small cat with a flexible body", "the graceful cat with whiskers", "a typical household cat", "the furry cat with a long tail"],
+        2: ["the dog in the image", "a canine with a wagging tail.", "a playful dog with strong build", "a furry dog with paws", "a typical household dog"]
     }
     
     with torch.no_grad():
