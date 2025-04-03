@@ -674,6 +674,11 @@ def evaluate_model(model, dataloader, clip_model, device):
             outputs = model(images, batch_text_features)
             _, predicted = torch.max(outputs, 1)
             
+            # Calculate accuracy (ignoring white pixels with value 255)
+            mask = (masks != 255)
+            correct += (predicted[mask] == masks[mask]).sum().item()
+            total += mask.sum().item()
+
             # Calculate IoU and Dice for each class
             for cls in range(num_classes):
                 pred_cls = (predicted == cls) & mask
