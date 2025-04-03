@@ -37,39 +37,6 @@ if torch.cuda.is_available():
     print(f"Available GPU memory: {torch.cuda.mem_get_info()[0] / 1e9:.2f} GB")
 
 
-def get_class_specific_text_features(clip_model, prompts_per_class, device):
-    """
-    Get text features for each class separately
-    
-    Args:
-        clip_model: CLIP model
-        prompts_per_class: List of lists of prompts, one list per class
-        device: torch device
-    
-    Returns:
-        Tensor of shape (num_classes, embed_dim)
-    """
-    all_text_features = []
-    
-    for class_prompts in prompts_per_class:
-        # Tokenize all prompts for this class
-        tokens = clip.tokenize(class_prompts).to(device)
-        with torch.no_grad():
-            # Get text features for all prompts
-            class_features = clip_model.encode_text(tokens)
-            # Normalize features
-            class_features = class_features / class_features.norm(dim=1, keepdim=True)
-            # Average the embeddings
-            avg_features = class_features.mean(dim=0, keepdim=True)
-            # Normalize again
-            avg_features = avg_features / avg_features.norm(dim=1, keepdim=True)
-        
-        all_text_features.append(avg_features)
-    
-    # Concatenate all class features
-    return torch.cat(all_text_features, dim=0)
-
-
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(DoubleConv, self).__init__()
@@ -260,7 +227,7 @@ def get_class_specific_text_features(clip_model, prompts_per_class, device):
         all_text_features.append(avg_features)
     
     # Concatenate all class features
-    return torch.cat(all_text_features, dim=0)  # (num_classes, embed_dim)
+    return torch.cat(all_text_features, dim=0)
 
 
 def train_text_prompted_model(model, train_loader, val_loader, text_features, run_path, num_epochs=20, cat_weight=2.1, device=device):
