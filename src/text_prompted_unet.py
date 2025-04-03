@@ -769,6 +769,6 @@ if __name__ == "__main__":
     val_results = evaluate_model(model, val_loader, text_features, device)
 
     print("\nEvaluating model on test set:")
-    test_results = evaluate_model(model, test_loader, device)
+    test_results = evaluate_model(model, test_loader, text_features, device)
 
     print("Training and evaluation completed and model saved!")
