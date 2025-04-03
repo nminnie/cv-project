@@ -754,7 +754,7 @@ if __name__ == "__main__":
     ).to(device)    
 
     # Train the model
-    model = train_text_prompted_model(
+    model, _ = train_text_prompted_model(
         model,
         train_loader,
         val_loader,
