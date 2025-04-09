@@ -422,9 +422,9 @@ def visualize_predictions(model, dataset_root, perturbation_type, levels, device
                 plt.axis('off')
                 
                 # Add overall title
-                intensity_value = perturbed_dataset.intensity_values[perturbation_type][level]
-                plt.suptitle(f"{perturbation_type.replace('_', ' ').title()} (Level {level}, Value: {intensity_value})", 
-                           fontsize=14)
+                #intensity_value = perturbed_dataset.intensity_values[perturbation_type][level]
+                #plt.suptitle(f"{perturbation_type.replace('_', ' ').title()} (Level {level}, Value: {intensity_value})", 
+                #           fontsize=14)
                 
                 # Save figure
                 plt.tight_layout(rect=[0, 0, 1, 0.95])
