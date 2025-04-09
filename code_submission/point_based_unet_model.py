@@ -11,16 +11,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import random
-from scipy.ndimage import gaussian_filter, map_coordinates
 import time
 
-### SETUP & IMPORT ###
-# Get the absolute path to the project root directory (parent of both notebooks and src)
-project_root = os.path.abspath(os.path.join(os.path.dirname('__file__'), '..'))
-sys.path.append(project_root)
-
-# Then import the module directly
-from src.data_preprocessing import PetDataset
 
 # Set random seed for reproducibility
 seed = 100
@@ -42,25 +34,23 @@ if torch.cuda.is_available():
     print(f"Available GPU memory: {torch.cuda.mem_get_info()[0] / 1e9:.2f} GB")
 
 
-### POINT-BASED DATASET CLASS ###
 class PointPromptedPetDataset(Dataset):
-    def __init__(self, root_dir, split='train', transform=None, point_sample_mode='foreground_weighted'):
+    def __init__(self, root_dir, split='train', transform=None, num_fg_points=1, num_bg_points=1):
         """
-        Enhanced dataset class that adds point prompts for segmentation.
+        Enhanced dataset class that adds foreground and background point prompts for segmentation.
         
         Args:
             root_dir (string): Directory with the dataset.
             split (string): 'train', 'val' or 'test' split.
             transform (callable, optional): Transform to be applied on the input image and mask.
-            point_sample_mode (string): Strategy for sampling points:
-                - 'foreground_weighted': Sample from foreground with higher probability
-                - 'random': Completely random point
-                - 'class_balanced': Balance points across classes
+            num_fg_points (int): Number of foreground points to sample
+            num_bg_points (int): Number of background points to sample
         """
         self.root_dir = root_dir
         self.split = split
         self.transform = transform
-        self.point_sample_mode = point_sample_mode
+        self.num_fg_points = num_fg_points
+        self.num_bg_points = num_bg_points
         
         # Set paths for images and masks
         self.image_dir = os.path.join(root_dir, split, 'color')
@@ -77,68 +67,73 @@ class PointPromptedPetDataset(Dataset):
     def __len__(self):
         return len(self.image_files)
     
-    def _sample_point(self, mask):
-        """Sample a point based on the defined strategy.
+    def _sample_foreground_points(self, mask, num_points=1):
+        """Sample points from foreground objects.
         
         Args:
             mask: Numpy array of shape (H, W) with class indices
+            num_points: Number of points to sample
             
         Returns:
-            tuple: (y, x) coordinates of the sampled point
+            list: List of (y, x) coordinates of the sampled points
         """
         h, w = mask.shape
-        valid_mask = mask != 255  # Exclude ignore regions
+        foreground_mask = (mask > 0) & (mask != 255)  # All classes except background and ignore
         
-        if self.point_sample_mode == 'random':
-            # Completely random point (avoids ignore regions)
-            valid_points = np.where(valid_mask)
-            if len(valid_points[0]) > 0:
-                idx = np.random.randint(0, len(valid_points[0]))
-                return (valid_points[0][idx], valid_points[1][idx])
-            else:
-                return (h // 2, w // 2)  # Fallback to center
-                
-        elif self.point_sample_mode == 'foreground_weighted':
-            # Sample with higher probability from foreground classes
-            # Weight: background=1, cat=5, dog=5
-            weights = np.ones_like(mask, dtype=np.float32)
-            weights[mask == 1] = 5.0  # Cat class
-            weights[mask == 2] = 5.0  # Dog class
-            weights[mask == 255] = 0.0  # Ignore regions
-            
-            weights = weights / weights.sum()  # Normalize to probability distribution
-            flat_idx = np.random.choice(h * w, p=weights.flatten())
-            y, x = flat_idx // w, flat_idx % w
-            return (y, x)
-            
-        elif self.point_sample_mode == 'class_balanced':
-            # Sample one point per class with equal probability
-            classes = np.unique(mask)
-            classes = classes[classes != 255]  # Remove ignore index
-            selected_class = np.random.choice(classes)
-            
-            class_points = np.where(mask == selected_class)
-            if len(class_points[0]) > 0:
-                idx = np.random.randint(0, len(class_points[0]))
-                return (class_points[0][idx], class_points[1][idx])
-            else:
-                return (h // 2, w // 2)  # Fallback to center
+        sample_fg_points = []
+        if np.any(foreground_mask):
+            foreground_points = np.where(foreground_mask)
+            # Sample multiple points if requested
+            for _ in range(num_points):
+                idx = np.random.randint(0, len(foreground_points[0]))
+                sample_fg_points.append((foreground_points[0][idx], foreground_points[1][idx]))
         
-        else:
-            raise ValueError(f"Unknown point_sample_mode: {self.point_sample_mode}")
+        # If no foreground points found or not enough, add center point as fallback
+        while len(sample_fg_points) < num_points:
+            sample_fg_points.append((h // 2, w // 2))
+            
+        return sample_fg_points
     
-    def _create_point_heatmap(self, point, shape, sigma=3.0):
-        """Create a Gaussian heatmap around the selected point.
+    def _sample_background_points(self, mask, num_points=1):
+        """Sample points from background regions.
         
         Args:
-            point: (y, x) coordinates of the point
+            mask: Numpy array of shape (H, W) with class indices
+            num_points: Number of points to sample
+            
+        Returns:
+            list: List of (y, x) coordinates of the sampled points
+        """
+        h, w = mask.shape
+        background_mask = (mask == 0) & (mask != 255)  # Only background, not ignore
+        
+        sample_bg_points = []
+        if np.any(background_mask):
+            background_points = np.where(background_mask)
+            # Sample multiple points if requested
+            for _ in range(num_points):
+                idx = np.random.randint(0, len(background_points[0]))
+                sample_bg_points.append((background_points[0][idx], background_points[1][idx]))
+        
+        # If no background points found, try to find a point far from foreground
+        while len(sample_bg_points) < num_points:
+            # Simple fallback: just use a corner point
+            sample_bg_points.append((0, 0))
+            
+        return sample_bg_points
+    
+    def _create_point_heatmaps(self, fg_points, bg_points, shape, sigma=3.0):
+        """Create Gaussian heatmaps around the selected points.
+        
+        Args:
+            fg_points: List of (y, x) coordinates for foreground points
+            bg_points: List of (y, x) coordinates for background points
             shape: Output shape (H, W)
             sigma: Standard deviation of Gaussian kernel
             
         Returns:
-            torch.Tensor: Heatmap of shape (1, H, W)
+            tuple: (fg_heatmap, bg_heatmap) both of shape (1, H, W)
         """
-        y, x = point
         h, w = shape
         
         # Create coordinate grids
@@ -148,17 +143,38 @@ class PointPromptedPetDataset(Dataset):
             indexing='ij'
         )
         
-        # Calculate squared distances
-        squared_dist = (y_grid - y) ** 2 + (x_grid - x) ** 2
+        # Initialize heatmaps
+        fg_heatmap = torch.zeros((h, w), dtype=torch.float32)
+        bg_heatmap = torch.zeros((h, w), dtype=torch.float32)
         
-        # Create Gaussian heatmap
-        heatmap = torch.exp(-squared_dist / (2 * sigma ** 2))
+        # Add Gaussian for each foreground point
+        for point in fg_points:
+            y, x = point
+            # Calculate squared distances
+            squared_dist = (y_grid - y) ** 2 + (x_grid - x) ** 2
+            # Create Gaussian heatmap
+            point_heatmap = torch.exp(-squared_dist / (2 * sigma ** 2))
+            # Combine with existing heatmap (maximum value at each pixel)
+            fg_heatmap = torch.maximum(fg_heatmap, point_heatmap)
         
-        # Normalize to [0, 1]
-        heatmap = heatmap / heatmap.max()
+        # Add Gaussian for each background point
+        for point in bg_points:
+            y, x = point
+            # Calculate squared distances
+            squared_dist = (y_grid - y) ** 2 + (x_grid - x) ** 2
+            # Create Gaussian heatmap
+            point_heatmap = torch.exp(-squared_dist / (2 * sigma ** 2))
+            # Combine with existing heatmap (maximum value at each pixel)
+            bg_heatmap = torch.maximum(bg_heatmap, point_heatmap)
+        
+        # Normalize to [0, 1] if not empty
+        if fg_heatmap.max() > 0:
+            fg_heatmap = fg_heatmap / fg_heatmap.max()
+        if bg_heatmap.max() > 0:
+            bg_heatmap = bg_heatmap / bg_heatmap.max()
         
         # Add channel dimension
-        return heatmap.unsqueeze(0)
+        return fg_heatmap.unsqueeze(0), bg_heatmap.unsqueeze(0)
     
     def __getitem__(self, idx):
         img_name = self.image_files[idx]
@@ -202,20 +218,19 @@ class PointPromptedPetDataset(Dataset):
         if self.transform:
             image_transformed, seg_mask_transformed = self.transform(image, seg_mask_pil)
             
-            # Sample a point after transformations
+            # Sample points after transformations
             seg_mask_np = np.array(seg_mask_transformed)
-            sampled_point = self._sample_point(seg_mask_np)
+            fg_points = self._sample_foreground_points(seg_mask_np, self.num_fg_points)
+            bg_points = self._sample_background_points(seg_mask_np, self.num_bg_points)
             
-            # Create point heatmap
-            point_heatmap = self._create_point_heatmap(
-                sampled_point, 
+            # Create point heatmaps
+            fg_heatmap, bg_heatmap = self._create_point_heatmaps(
+                fg_points, 
+                bg_points,
                 shape=(image_transformed.shape[1], image_transformed.shape[2])
             )
             
-            # The class at the sampled point
-            point_class = seg_mask_np[sampled_point[0], sampled_point[1]]
-            
-            return image_transformed, point_heatmap, seg_mask_transformed, sampled_point, point_class
+            return image_transformed, fg_heatmap, bg_heatmap, seg_mask_transformed, fg_points, bg_points
         else:
             # Convert to tensor if no transform
             image = TF.resize(image, (224, 224))
@@ -225,22 +240,20 @@ class PointPromptedPetDataset(Dataset):
             seg_mask_array = np.array(seg_mask_pil)
             seg_mask_tensor = torch.from_numpy(seg_mask_array).long()
             
-            # Sample a point
-            sampled_point = self._sample_point(seg_mask_array)
+            # Sample points
+            fg_points = self._sample_foreground_points(seg_mask_array, self.num_fg_points)
+            bg_points = self._sample_background_points(seg_mask_array, self.num_bg_points)
             
-            # Create point heatmap
-            point_heatmap = self._create_point_heatmap(
-                sampled_point, 
+            # Create point heatmaps
+            fg_heatmap, bg_heatmap = self._create_point_heatmaps(
+                fg_points, 
+                bg_points,
                 shape=(image_tensor.shape[1], image_tensor.shape[2])
             )
             
-            # The class at the sampled point
-            point_class = seg_mask_array[sampled_point[0], sampled_point[1]]
-            
-            return image_tensor, point_heatmap, seg_mask_tensor, sampled_point, point_class
+            return image_tensor, fg_heatmap, bg_heatmap, seg_mask_tensor, fg_points, bg_points
 
 
-### POINT-BASED UNET ARCHITECTURE ###
 class DoubleConv(nn.Module):
     def __init__(self, in_channels, out_channels):
         super(DoubleConv, self).__init__()
@@ -259,23 +272,23 @@ class DoubleConv(nn.Module):
 class PointPromptedUNet(nn.Module):
     def __init__(self, in_channels=3, out_channels=3, features_start=32, point_encoder_type='concat'):
         """
-        UNet model modified to incorporate point prompts.
+        UNet model modified to incorporate foreground and background point prompts.
         
         Args:
             in_channels (int): Number of input channels
             out_channels (int): Number of output classes
             features_start (int): Number of features in first layer
             point_encoder_type (str): How to incorporate point features:
-                - 'concat': Concatenate point heatmap with image in input
-                - 'parallel': Process point heatmap in parallel branch and concatenate features
+                - 'concat': Concatenate point heatmaps with image in input
+                - 'parallel': Process point heatmaps in parallel branch and concatenate features
         """
         super(PointPromptedUNet, self).__init__()
         
         self.point_encoder_type = point_encoder_type
         
-        # Adjust input channels to include point heatmap for 'concat' approach
+        # Adjust input channels to include foreground and background point heatmaps for 'concat' approach
         if point_encoder_type == 'concat':
-            adjusted_in_channels = in_channels + 1  # +1 for point heatmap channel
+            adjusted_in_channels = in_channels + 2  # +2 for foreground and background point heatmaps
         else:  # 'parallel' approach
             adjusted_in_channels = in_channels
         
@@ -291,7 +304,8 @@ class PointPromptedUNet(nn.Module):
         
         # Point encoder branch for 'parallel' approach
         if point_encoder_type == 'parallel':
-            self.point_encoder1 = DoubleConv(1, features_start // 2)
+            # Now handles 2 channels: foreground and background points
+            self.point_encoder1 = DoubleConv(2, features_start // 2)
             self.point_pool1 = nn.MaxPool2d(2)
             self.point_encoder2 = DoubleConv(features_start // 2, features_start)
             self.point_pool2 = nn.MaxPool2d(2)
@@ -319,10 +333,10 @@ class PointPromptedUNet(nn.Module):
         # Final Convolution
         self.final_conv = nn.Conv2d(features_start, out_channels, kernel_size=1)
 
-    def forward(self, x, point_heatmap):
-        # Concatenate image and point heatmap for 'concat' approach
+    def forward(self, x, fg_point_heatmap, bg_point_heatmap):
+        # Concatenate image and point heatmaps for 'concat' approach
         if self.point_encoder_type == 'concat':
-            x = torch.cat([x, point_heatmap], dim=1)
+            x = torch.cat([x, fg_point_heatmap, bg_point_heatmap], dim=1)
             
             # Encoder
             enc1 = self.encoder1(x)
@@ -341,8 +355,9 @@ class PointPromptedUNet(nn.Module):
             enc4 = self.encoder4(self.pool3(enc3))
             img_features = self.pool4(enc4)
             
-            # Point encoder branch
-            p_enc1 = self.point_encoder1(point_heatmap)
+            # Point encoder branch - combine foreground and background heatmaps
+            point_heatmaps = torch.cat([fg_point_heatmap, bg_point_heatmap], dim=1)
+            p_enc1 = self.point_encoder1(point_heatmaps)
             p_enc2 = self.point_encoder2(self.point_pool1(p_enc1))
             p_enc3 = self.point_encoder3(self.point_pool2(p_enc2))
             p_enc4 = self.point_encoder4(self.point_pool3(p_enc3))
@@ -372,7 +387,6 @@ class PointPromptedUNet(nn.Module):
         return self.final_conv(dec1)
 
 
-### TRAIN NETWORK ###
 def train_point_prompted_unet(model, train_loader, val_loader, run_path, num_epochs=50, cat_weight=2.1, device=device):
     """
     Train the Point-Prompted U-Net model.
@@ -414,21 +428,22 @@ def train_point_prompted_unet(model, train_loader, val_loader, run_path, num_epo
     # Test data loading
     print("Testing data loading...")
     try:
-        test_imgs, test_points, test_masks, _, _ = next(iter(train_loader))
-        print(f"Sample batch loaded - images: {test_imgs.shape}, points: {test_points.shape}, masks: {test_masks.shape}")
+        test_imgs, test_fg_heatmaps, test_bg_heatmaps, test_masks, _, _ = next(iter(train_loader))
+        print(f"Sample batch loaded - images: {test_imgs.shape}, points: {test_fg_heatmaps.shape}, masks: {test_masks.shape}")
         print(f"Data loading test: {time.time() - start_time:.2f}s")
         
         # Test batch to GPU transfer
         print("Testing batch GPU transfer...")
         test_imgs = test_imgs.to(device)
-        test_points = test_points.to(device)
+        test_fg_heatmaps = test_fg_heatmaps.to(device)
+        test_bg_heatmaps = test_bg_heatmaps.to(device)
         test_masks = test_masks.to(device)
         print(f"GPU transfer test: {time.time() - start_time:.2f}s")
         
         # Test forward pass
         print("Testing forward pass...")
         with torch.no_grad():
-            test_output = model(test_imgs, test_points)
+            test_output = model(test_imgs, test_fg_heatmaps, test_bg_heatmaps)
         print(f"Forward pass test: {time.time() - start_time:.2f}s")
     except Exception as e:
         print(f"Error in data loading test: {e}")
@@ -476,16 +491,17 @@ def train_point_prompted_unet(model, train_loader, val_loader, run_path, num_epo
         optimizer.zero_grad()
         batch_count = 0
         
-        for images, point_heatmaps, masks, _, _ in train_pbar:
+        for images, fg_heatmaps, bg_heatmaps, masks, _, _ in train_pbar:
             batch_count += 1
             # Move data to device
             images = images.to(device)
-            point_heatmaps = point_heatmaps.to(device)
+            fg_heatmaps = fg_heatmaps.to(device)
+            bg_heatmaps = bg_heatmaps.to(device)
             masks = masks.to(device)
             
             # Forward pass with mixed precision
             with autocast():
-                outputs = model(images, point_heatmaps)
+                outputs = model(images, fg_heatmaps, bg_heatmaps)
                 loss = criterion(outputs, masks)
             
             # Scale loss by accumulation steps and backward pass
@@ -558,14 +574,15 @@ def train_point_prompted_unet(model, train_loader, val_loader, run_path, num_epo
         val_pbar = tqdm(val_loader, desc=f"Epoch {epoch+1}/{num_epochs} (Val)", leave=False)
         
         with torch.no_grad():
-            for images, point_heatmaps, masks, _, _ in val_pbar:
+            for images, fg_heatmaps, bg_heatmaps, masks, _, _ in val_pbar:
                 # Move data to device
                 images = images.to(device)
-                point_heatmaps = point_heatmaps.to(device)
+                fg_heatmaps = fg_heatmaps.to(device)
+                bg_heatmaps = bg_heatmaps.to(device)
                 masks = masks.to(device)
                 
                 # Forward pass
-                outputs = model(images, point_heatmaps)
+                outputs = model(images, fg_heatmaps, bg_heatmaps)
                 
                 # Calculate loss
                 loss = criterion(outputs, masks)
@@ -716,7 +733,6 @@ def train_point_prompted_unet(model, train_loader, val_loader, run_path, num_epo
     }
 
 
-### EVALUATE POINT-BASED UNET ###
 def evaluate_model(model, dataloader, device):
     """
     Evaluate the point-based U-Net model.
@@ -743,13 +759,14 @@ def evaluate_model(model, dataloader, device):
     dice_sum = torch.zeros(num_classes, device=device)
     
     with torch.no_grad():
-        for images, point_heatmaps, masks, _, _ in tqdm(dataloader, desc="Evaluating"):
+        for images, fg_heatmaps, bg_heatmaps, masks, _, _ in tqdm(dataloader, desc="Evaluating"):
             images = images.to(device)
-            point_heatmaps = point_heatmaps.to(device)
+            fg_heatmaps = fg_heatmaps.to(device)
+            bg_heatmaps = bg_heatmaps.to(device)
             masks = masks.to(device)
             
             # Get predictions
-            outputs = model(images, point_heatmaps)
+            outputs = model(images, fg_heatmaps, bg_heatmaps)
             _, predicted = torch.max(outputs, 1)
             
             # Calculate accuracy (ignoring white pixels with value 255)
@@ -805,11 +822,10 @@ def evaluate_model(model, dataloader, device):
 
 
 if __name__ == "__main__":
-    ### CREATE DATALOADERS ###
     # Set paths and create datasets
     data_root = '../Dataset_augmented/'
     run_name = 'parallel_20epochs'
-    run_path = f'runs/point_based_unet/{run_name}'
+    run_path = f'runs/point_based_FGBG_model/{run_name}'
     if not os.path.exists(run_path):
         os.makedirs(run_path)
 
@@ -841,12 +857,11 @@ if __name__ == "__main__":
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
 
 
-    ### TRAIN POINT-BASED UNET ###
+    # Train Point-based U-Net model
     point_based_unet = PointPromptedUNet(in_channels=3, out_channels=3, point_encoder_type='parallel').to(device)
     print("Point-based U-Net model created:")
     print(f"Total parameters: {sum(p.numel() for p in point_based_unet.parameters()):,}")
 
-    # Train Point-based U-Net model
     print("Training Point-based U-Net...")
     num_epochs = 20
     cat_weight = 1.0
@@ -860,7 +875,6 @@ if __name__ == "__main__":
     print("Training complete!")
     
 
-    ### EVALUATE POINT-BASED UNET ###
     # Evaluate model on validation set
     print("\nEvaluating Point-Based U-Net on validation set:")
     val_results = evaluate_model(point_based_unet, val_loader, device)

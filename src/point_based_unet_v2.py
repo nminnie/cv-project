@@ -11,7 +11,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import random
-from scipy.ndimage import gaussian_filter, map_coordinates
 import time
 
 
@@ -81,19 +80,19 @@ class PointPromptedPetDataset(Dataset):
         h, w = mask.shape
         foreground_mask = (mask > 0) & (mask != 255)  # All classes except background and ignore
         
-        points = []
+        sample_fg_points = []
         if np.any(foreground_mask):
             foreground_points = np.where(foreground_mask)
             # Sample multiple points if requested
             for _ in range(num_points):
                 idx = np.random.randint(0, len(foreground_points[0]))
-                points.append((foreground_points[0][idx], foreground_points[1][idx]))
+                sample_fg_points.append((foreground_points[0][idx], foreground_points[1][idx]))
         
         # If no foreground points found or not enough, add center point as fallback
-        while len(points) < num_points:
-            points.append((h // 2, w // 2))
+        while len(sample_fg_points) < num_points:
+            sample_fg_points.append((h // 2, w // 2))
             
-        return points
+        return sample_fg_points
     
     def _sample_background_points(self, mask, num_points=1):
         """Sample points from background regions.
@@ -108,20 +107,20 @@ class PointPromptedPetDataset(Dataset):
         h, w = mask.shape
         background_mask = (mask == 0) & (mask != 255)  # Only background, not ignore
         
-        points = []
+        sample_bg_points = []
         if np.any(background_mask):
             background_points = np.where(background_mask)
             # Sample multiple points if requested
             for _ in range(num_points):
                 idx = np.random.randint(0, len(background_points[0]))
-                points.append((background_points[0][idx], background_points[1][idx]))
+                sample_bg_points.append((background_points[0][idx], background_points[1][idx]))
         
         # If no background points found, try to find a point far from foreground
-        while len(points) < num_points:
+        while len(sample_bg_points) < num_points:
             # Simple fallback: just use a corner point
-            points.append((0, 0))
+            sample_bg_points.append((0, 0))
             
-        return points
+        return sample_bg_points
     
     def _create_point_heatmaps(self, fg_points, bg_points, shape, sigma=3.0):
         """Create Gaussian heatmaps around the selected points.
